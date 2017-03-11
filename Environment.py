@@ -23,8 +23,8 @@ class Environment():
         self.display_option = display_option
 
         #Limits for manual control
-        self.max_accel_rate = 60.0
-        self.max_steering_rate = 0.03
+        self.min_steering = 0.0045
+        self.max_steering = 0.009
         
         self.max_fitness_index = 0
         self.max_fitness = 0.0
@@ -46,31 +46,29 @@ class Environment():
     def control(self):
         # the first car in the list is controlled manually, others by nn
         if self.control_type == 'manual' or self.control_type == 'training':
-            print 'manual'
+            #print 'manual'
             if self.display_option==True:
+                control_list = [0,0,0,0,0]
                 keys = pygame.key.get_pressed()
-                if (keys[pygame.K_a] ==True and keys[pygame.K_f] ==True) or (keys[pygame.K_a] ==False and keys[pygame.K_f] ==False):
-                    steering_rate = 0.0
-                elif keys[pygame.K_a] ==True:
-                    steering_rate = -1 * self.max_steering_rate
-                elif keys[pygame.K_f] ==True:
-                    steering_rate = self.max_steering_rate
-
-                if (keys[pygame.K_UP] ==True and keys[pygame.K_DOWN] ==True) or (keys[pygame.K_UP] ==False and keys[pygame.K_DOWN] ==False):
-                    accel_rate = 0.0
-                elif keys[pygame.K_UP] ==True:
-                    accel_rate = self.max_accel_rate
-                elif keys[pygame.K_DOWN] ==True:
-                    accel_rate = -1 * self.max_accel_rate
-
-                self.car_list[0].control_rates(accel_rate, steering_rate)
+                if keys[pygame.K_a] ==True:
+                    control_list[0] = 1
+                if keys[pygame.K_s] ==True:
+                    control_list[1] = 1
+                if keys[pygame.K_d] ==True:
+                    control_list[3] = 1
+                if keys[pygame.K_f] ==True:
+                    control_list[4] = 1
+                #Test for no inputs, set straight steering
+                if all(value == 0 for value in control_list):
+                    control_list[2] = 1
+                self.car_list[0].control_list(control_list)
 
 
             if len(self.car_list) > 1:
                 for i in range(1,len(self.car_list)):
                     if self.car_list[i].crashed != True and self.car_list[i].finished != True:
                         prediction = self.network_list[i].predict(self.car_list[i].get_inputs())
-                        self.car_list[i].control_scaled(prediction[0], prediction[1])
+                        self.car_list[i].control_list(prediction)
 
         #All cars controlled by nn
         #elif self.control_type == 'neural':
@@ -78,7 +76,7 @@ class Environment():
             for i in range(0,len(self.car_list)):
                 if self.car_list[i].crashed != True and self.car_list[i].finished != True:
                     prediction = self.network_list[i].predict(self.car_list[i].get_inputs())
-                    self.car_list[i].control_scaled(prediction[0], prediction[1])
+                    self.car_list[i].control_list(prediction)
 
         #Quits the game
             if self.display_option==True:

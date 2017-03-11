@@ -15,29 +15,21 @@ class Car():
         self.orientation = euclid.Vector3(orientation, 0.0, 0.0)  # orientation vector unit vector centered at the car's origin. 
         self.velocity = velocity             # rate of change of positon in direction of travel ms-1
 
-        self.accel = 0.0               #Rate of change of velocity ms-2
-        self.accel_rate = 0.0           #Rate of change of accel ms-3
-
         self.steering =  0.0         #rate of change of yaw with respect to velocity rad/pixel -ve left, +ve right
-        self.steering_rate =  0.0         #rate of change of steering rad/pixel/second -ve left, +ve right
 
         #Limits    
-        self.max_velocity = 275.0
-        #self.max_velocity = 400.0
-        self.max_accel = 100.0     
-        #self.max_steering = 0.00015 #For orientation not dependant on dtime.
-        self.max_steering = 0.009 #Works well for manual control
+        self.velocity = 300
 
-        #Drag parameters
-        self.steering_drag = 0.9
-        self.rolling_drag = 0.1
+        self.max_steering = 0.009
+        self.min_steering = 0.0045
+        self.steering_array = [-1*self.max_steering, -1*self.min_steering, 0, self.min_steering, self.max_steering]
 
         # Trip metrics
         self.dist_travelled = 0.0       # total distance travelled
         self.total_time = 0.0
         self.avg_velocity = 0.0         # average velocity for the trip
         self.crashed = False            # did the car crash into an obstacle?
-        self.finished = False            # did the car pass through the finish line? 
+        self.finishes = 0            # did the car pass through the finish line? 
         self.fitness = 0.0             
 
         #Define the car geometry
@@ -50,7 +42,7 @@ class Car():
         #Define the sensor array
         self.sensor_origin_dist = 0.5
         self.max_sensor_length = 500.0
-        self.num_sensors = 8
+        self.num_sensors = 10
         self.sensor_ranges = [self.max_sensor_length] * self.num_sensors
 
         self.screen_offset_vec = euclid.Vector3(0.0, 0.0, 0.0)
@@ -62,28 +54,18 @@ class Car():
         #Inputs
         for s_range in self.sensor_ranges:
             inputs.append(self.__truncate(s_range,2))
-        #new_max = 280.0
-        #if self.velocity>new_max:
-        #    inputs.append(self.__truncate(new_max,2))
-        #else:
-        inputs.append(self.__truncate(self.velocity,2))
         return inputs 
 
-    def control_scaled(self, accel_scaled, steer_scaled):
+    def control_list(self, control_list):
         if self.crashed == False:
-            self.accel = self.__translate(accel_scaled, -1.0, 1.0, -1*self.max_accel, self.max_accel)
-            self.steering = self.__translate(steer_scaled, -1.0, 1.0, -1*self.max_steering, self.max_steering)
+            max_control = 0
+            index = 0
+            for i in range(0, len(control_list)):
+                if control_list[i] > max_control:
+                    self.steering = self.steering_array[i] 
+                    index = i
 
-    def control_unscaled(self, accel, steering):
-        if self.crashed == False:
-            self.accel = accel
-            self.steering = steering
-
-    def control_rates(self, accel_rate, steering_rate):
-        if self.crashed == False:
-            self.accel_rate = accel_rate
-            self.steering_rate = steering_rate
-
+    
     def update(self, time_delta, obstacles, finish_line):
         self.__reset_sensors()
         self.__update_dynamics(time_delta)
@@ -168,41 +150,18 @@ class Car():
         # stay still if crashed
         if self.crashed ==True:
             self.velocity = 0.0
-            self.accel = 0.0
 
         # store previous position for distance accumulation
         self.prev_position = self.position.copy()
 
-        # update rates
-        self.steering += self.steering_rate * time_delta
-        if self.steering > self.max_steering:
-            self.steering = self.max_steering
-        elif self.steering < -1*self.max_steering:
-            self.steering = -1*self.max_steering
-
-        self.accel += self.accel_rate * time_delta
-        if self.accel > self.max_accel:
-            self.accel = self.max_accel
-        elif self.accel < -1*self.max_accel:
-            self.accel = -1*self.max_accel
-
-        self.velocity += self.accel * time_delta
-        self.velocity -= self.velocity * self.rolling_drag * time_delta
-        self.velocity -= self.velocity * abs(self.steering) * self.steering_drag * time_delta
-        if self.velocity > self.max_velocity:
-            self.velocity = self.max_velocity
-        elif self.velocity < -1*self.max_velocity:
-            self.velocity = -1*self.max_velocity
-
         # update pose
-        self.orientation = self.orientation.rotate_around(euclid.Vector3(0.,0.,1.),self.steering * self.velocity * time_delta + 0.5 * (self.steering_rate * (time_delta**2)))
-        self.position += self.velocity * self.orientation * time_delta + 0.5 * (self.accel * self.orientation * (time_delta**2))
+        self.orientation = self.orientation.rotate_around(euclid.Vector3(0.,0.,1.),self.steering * self.velocity * time_delta)
+        self.position += self.velocity * self.orientation * time_delta
         
         # Accumulate trip metrics
         if self.crashed == False: 
             self.dist_travelled += math.copysign(abs(self.position - self.prev_position), self.velocity)
             self.total_time += time_delta
-            self.avg_velocity = self.dist_travelled/self.total_time
             #update the fitness
             self.fitness = 2.0*self.dist_travelled + self.avg_velocity
 
@@ -289,31 +248,31 @@ class Car():
         # Scale the data to values between -1 and 1. append to list with one row per time step
         current_data = []
         #Inputs
-        if scale_inputs:
-            for s_range in self.sensor_ranges:
-                current_data.append(self.__truncate(self.__translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
+       # if scale_inputs:
+       #     for s_range in self.sensor_ranges:
+       #         current_data.append(self.__truncate(self.__translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
 
-            current_data.append(self.__truncate(self.__translate(self.velocity, 0.0, self.max_velocity, 0.0, 1.0),2))
-        else:
-            for s_range in self.sensor_ranges:
-                current_data.append(self.__truncate(s_range,2))
+       #     current_data.append(self.__truncate(self.__translate(self.velocity, 0.0, self.max_velocity, 0.0, 1.0),2))
+       # else:
+       #     for s_range in self.sensor_ranges:
+       #         current_data.append(self.__truncate(s_range,2))
 
-            current_data.append(self.__truncate(self.velocity,2))
+       #     current_data.append(self.__truncate(self.velocity,2))
 
-        #Outputs
-        if scale_outputs:
-            current_data.append(self.__truncate(self.__translate(self.accel, -1* self.max_accel, self.max_accel, -1.0, 1.0),2))
-            current_data.append(self.__truncate(self.__translate(self.steering, -1* self.max_steering, self.max_steering, -1.0, 1.0),2))
-        else:
-            current_data.append(self.__truncate(self.accel,2))
-            current_data.append(self.__truncate(self.steering,2))
+       # #Outputs
+       # if scale_outputs:
+       #     current_data.append(self.__truncate(self.__translate(self.accel, -1* self.max_accel, self.max_accel, -1.0, 1.0),2))
+       #     current_data.append(self.__truncate(self.__translate(self.steering, -1* self.max_steering, self.max_steering, -1.0, 1.0),2))
+       # else:
+       #     current_data.append(self.__truncate(self.accel,2))
+       #     current_data.append(self.__truncate(self.steering,2))
 
-        self.data_log.append(current_data)
+       # self.data_log.append(current_data)
     
     def __get_sensor_vectors(self, ray_lengths):
-        angle = math.pi / (self.num_sensors+1)
+        angle = math.pi / (self.num_sensors-1)
         vectors = []
-        count = 1
+        count = 0
         for i in range(0,self.num_sensors):
             p1 = self.sensor_origin
             # sensor vector is count*angle radians from the right of the car, with an origin at sensor origin and a length of sensor_length 

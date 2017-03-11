@@ -34,14 +34,14 @@ car_x = [999, 1000, 1001]
 car_y = [79, 80, 81]
 
 #control_option = 'training'
-#control_option = 'manual'
+control_option = 'manual'
 #control_option = 'neural'
-control_option = 'reinforcement'
+#control_option = 'reinforcement'
 
 training_data = 'training_data.csv'
 generation_file = 'generation.csv'
 
-num_cars = 20
+num_cars = 1
 obstacles = [left_barrier,right_barrier]
 
 
@@ -94,35 +94,35 @@ while runMe:
     finish_line = [(car_x[x_index]-10.0, car_y[y_index] - 100), (car_x[x_index]-10.0, car_y[y_index] + 100)]
 
 
-    model_file = 'model/model.json'
-    weights_file = 'model/weights_gen'+str(prev_generation)+'.h5'
-    initial_network = Network.load(model_file, weights_file)
+    #model_file = 'model/model.json'
+    #weights_file = 'model/weights_gen'+str(prev_generation)+'.h5'
+    #initial_network = Network.load(model_file, weights_file)
     #initial_network.train(training_data, epoch=1, batch=3)
 
     network_list = []
     car_list = []
-    config,weights = initial_network.get_config_weights()
-    network_list.append(Network.from_config_weights(config, weights))
+
+    network_list.append(Network.new())
     car_list.append(Car([car_x[x_index], car_y[y_index]], direction_list[dirn_index], 0.0))
-    for count in range(1,num_cars):
-        config, weights = initial_network.rand_config_weights()
-        network_list.append(Network.from_config_weights(config, weights))
+    #for count in range(1,num_cars):
+    #    config, weights = initial_network.rand_config_weights()
+    #    network_list.append(Network.from_config_weights(config, weights))
+#
+#        car_list.append(Car([car_x[x_index], car_y[y_index]], direction_list[dirn_index], 0.0))
 
-        car_list.append(Car([car_x[x_index], car_y[y_index]], direction_list[dirn_index], 0.0))
-
-    for car in car_list:
-        car.control_unscaled(60.0,0.0)
+#    for car in car_list:
+#        car.control_unscaled(60.0,0.0)
 
     environment = Environment(network_list, car_list, obstacles, finish_line, control_option, display)
-    print 'Start. Generation ', generation, ' current fitness = ', fitness_list[dirn_index]
+    #print 'Start. Generation ', generation, ' current fitness = ', fitness_list[dirn_index]
     while runMe == True:
 
         environment.control()
 
         #Limit the framerate
         dtime_ms = clock.tick(fpsLimit)
-        #dtime = dtime_ms/1000.0
-        dtime = 0.1 # to make sure that the timestep is constant in the game
+        dtime = dtime_ms/1000.0
+        #dtime = 0.1 # to make sure that the timestep is constant in the game
 
         environment.update(dtime)
         environment.update_generation_metrics()
