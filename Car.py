@@ -42,7 +42,7 @@ class Car():
         #Define the sensor array
         self.sensor_origin_dist = 0.5
         self.max_sensor_length = 500.0
-        self.num_sensors = 10
+        self.num_sensors = 15
         self.sensor_ranges = [self.max_sensor_length] * self.num_sensors
 
         self.screen_offset_vec = euclid.Vector3(0.0, 0.0, 0.0)
@@ -111,12 +111,16 @@ class Car():
 
         #Draw sensor vectors
         if draw_vectors == True:
+            sensor_list = []
             for line in sv:
                 point_list = [(line[0].x, line[0].y),(line[1].x, line[1].y)]
                 pygame.draw.lines(screen_handle, (0,0,255), False, point_list, 1)
+                sensor_list.append((int(line[1].x), int(line[1].y)))
 
-            #Draw the intersection if detected
-            #pygame.draw.circle(screen_handle, (255,0,0), (int(line[1].x), int(line[1].y)), 2, 0)
+                #Draw the intersection if detected
+                pygame.draw.circle(screen_handle, (255,0,0), (int(line[1].x), int(line[1].y)), 2, 0)
+            pygame.draw.lines(screen_handle, (0,0,0), False, sensor_list, self.line_width)
+                
 
     def write_data(self, file_name, overwrite):
         #Write data set to csv

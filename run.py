@@ -12,7 +12,7 @@ from Car import Car
 from Network import Network
 from Environment import Environment
 
-screen_size = screenWidth, screenHeight = 1000, 700
+screen_size = screenWidth, screenHeight = 700, 500
 
 #display = False
 display = True

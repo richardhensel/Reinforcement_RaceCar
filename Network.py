@@ -22,11 +22,11 @@ class Network():
     @classmethod
     def new(cls):
         model = Sequential()
-        model.add(Dense(13, input_dim=9, init='uniform', activation='relu'))
+        model.add(Dense(13, input_dim=10, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
-        model.add(Dense(2, init='uniform'))
+        model.add(Dense(5, init='uniform'))
 
         return cls(model)
 

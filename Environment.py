@@ -104,12 +104,12 @@ class Environment():
         screen_offset_vec = 0.5 * screen_vec - self.car_list[self.display_index].position
 
         # Display each of the obstacles offset to the location of the first car in the list.
-        for obstacle in self.obstacle_list:
-            ob = []
-            for point in obstacle:
-                point_vec = euclid.Vector3(point[0], point[1]) + screen_offset_vec
-                ob.append((point_vec.x, point_vec.y))
-            pygame.draw.lines(screen_handle, (0,0,0), True, ob, 5)
+       # for obstacle in self.obstacle_list:
+       #     ob = []
+       #     for point in obstacle:
+       #         point_vec = euclid.Vector3(point[0], point[1]) + screen_offset_vec
+       #         ob.append((point_vec.x, point_vec.y))
+       #     pygame.draw.lines(screen_handle, (0,0,0), True, ob, 5)
 
         #Display each of the cars and associated lasers offset to the locatino of the first car in the list. 
         for i in range(0,len(self.car_list)):
