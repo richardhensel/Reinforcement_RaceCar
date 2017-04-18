@@ -20,9 +20,18 @@ class Car():
         #Limits    
         self.velocity = 300
 
-        self.max_steering = 0.009
-        self.min_steering = 0.0045
-        self.steering_array = [-1*self.max_steering, -1*self.min_steering, 0, self.min_steering, self.max_steering]
+        #Define the control input
+        self.num_steering_speeds = 1
+        self.steering_increment = 0.0045
+        #Create the array of steering rates
+        if self.num_steering_speeds ==1:
+            self.steering_array = [-1.5*self.steering_increment, 0, 1.5*self.steering_increment]
+        elif self.num_steering_speeds ==2:   
+            self.steering_array = [-1*self.max_steering, -1*self.min_steering, 0, self.min_steering, self.max_steering]
+        else:
+            raise AssertionError('Steering increment must be set to 1 or 2')
+
+        self.control_bools = []
 
         # Trip metrics
         self.dist_travelled = 0.0       # total distance travelled
@@ -45,6 +54,7 @@ class Car():
         self.num_sensors = 15
         self.sensor_ranges = [self.max_sensor_length] * self.num_sensors
 
+
         self.screen_offset_vec = euclid.Vector3(0.0, 0.0, 0.0)
 
         self.data_log = []
@@ -57,6 +67,8 @@ class Car():
         return inputs 
 
     def control_list(self, control_list):
+        if len(control_list) != len(self.steering_array):
+            raise AttributeError( 'incorrect number of elements in steering list')
         if self.crashed == False:
             max_control = 0
             index = 0
@@ -65,6 +77,7 @@ class Car():
                     self.steering = self.steering_array[i] 
                     index = i
 
+        self.control_bools = control_list[:]
     
     def update(self, time_delta, obstacles, finish_line):
         self.__reset_sensors()
@@ -76,7 +89,7 @@ class Car():
             self.__detect_collision(obstacle)
         self.__detect_finish_line(finish_line)
 
-        self.__log_data(False, True)
+        self.__log_data(False)
 
     def __translate(self, value, leftMin, leftMax, rightMin, rightMax):
         self.data_log.append(current_data)
@@ -128,9 +141,12 @@ class Car():
             option = 'w'
         else:
             option = 'a'
-
-        if self.crashed:
-            self.data_log = self.data_log[:-30 or None]
+        #Append the crash status to each line of the data log
+        for line in self.data_log:
+            if self.crashed:
+                line.append(0)
+            else:
+                line.append(1)
 
         with open(file_name, option) as f:
             writer = csv.writer(f)
@@ -248,30 +264,26 @@ class Car():
         #Test for collision between the obstacle and each of the corners/lines of the car
         #self.crashed = True
 
-    def __log_data(self, scale_inputs, scale_outputs):
+    def __log_data(self, scale_inputs):
         # Scale the data to values between -1 and 1. append to list with one row per time step
         current_data = []
         #Inputs
-       # if scale_inputs:
-       #     for s_range in self.sensor_ranges:
-       #         current_data.append(self.__truncate(self.__translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
+        if scale_inputs:
+            for s_range in self.sensor_ranges:
+                current_data.append(self.__truncate(self.__translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
 
-       #     current_data.append(self.__truncate(self.__translate(self.velocity, 0.0, self.max_velocity, 0.0, 1.0),2))
-       # else:
-       #     for s_range in self.sensor_ranges:
-       #         current_data.append(self.__truncate(s_range,2))
+            current_data.append(self.__truncate(self.__translate(self.velocity, 0.0, self.max_velocity, 0.0, 1.0),2))
+        else:
+            for s_range in self.sensor_ranges:
+                current_data.append(self.__truncate(s_range,2))
 
-       #     current_data.append(self.__truncate(self.velocity,2))
+            current_data.append(self.__truncate(self.velocity,2))
 
-       # #Outputs
-       # if scale_outputs:
-       #     current_data.append(self.__truncate(self.__translate(self.accel, -1* self.max_accel, self.max_accel, -1.0, 1.0),2))
-       #     current_data.append(self.__truncate(self.__translate(self.steering, -1* self.max_steering, self.max_steering, -1.0, 1.0),2))
-       # else:
-       #     current_data.append(self.__truncate(self.accel,2))
-       #     current_data.append(self.__truncate(self.steering,2))
+        #Outputs
+            for item in self.control_bools:
+                current_data.append(item)
 
-       # self.data_log.append(current_data)
+        self.data_log.append(current_data)
     
     def __get_sensor_vectors(self, ray_lengths):
         angle = math.pi / (self.num_sensors-1)

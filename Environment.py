@@ -48,19 +48,19 @@ class Environment():
         if self.control_type == 'manual' or self.control_type == 'training':
             #print 'manual'
             if self.display_option==True:
-                control_list = [0,0,0,0,0]
+                control_list = [0,0,0]
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_a] ==True:
                     control_list[0] = 1
                 if keys[pygame.K_s] ==True:
-                    control_list[1] = 1
+                    control_list[0] = 1
                 if keys[pygame.K_d] ==True:
-                    control_list[3] = 1
+                    control_list[2] = 1
                 if keys[pygame.K_f] ==True:
-                    control_list[4] = 1
+                    control_list[2] = 1
                 #Test for no inputs, set straight steering
                 if all(value == 0 for value in control_list):
-                    control_list[2] = 1
+                    control_list[1] = 1
                 self.car_list[0].control_list(control_list)
 
 

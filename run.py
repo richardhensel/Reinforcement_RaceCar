@@ -33,8 +33,8 @@ right_barrier = [(980, 120), (1000.0, 120.0), (980, 120), (984, 120), (1002, 120
 car_x = [999, 1000, 1001]
 car_y = [79, 80, 81]
 
-#control_option = 'training'
-control_option = 'manual'
+control_option = 'training'
+#control_option = 'manual'
 #control_option = 'neural'
 #control_option = 'reinforcement'
 
