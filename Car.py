@@ -1,20 +1,19 @@
 import math, pygame, pygame.mixer
 import euclid
+import Functions
 from pygame.locals import *
 
 import csv
 
 class Car():
 
-    def __init__(self, position_list, orientation, velocity):
+    def __init__(self, position_list, orientation, velocity, control_type, log_data):
 
         # Dynamics
         self.position = euclid.Vector3(position_list[0], position_list[1],0.0)  # location vectors
         self.prev_position = self.position
- 
         self.orientation = euclid.Vector3(orientation, 0.0, 0.0)  # orientation vector unit vector centered at the car's origin. 
         self.velocity = velocity             # rate of change of positon in direction of travel ms-1
-
         self.steering =  0.0         #rate of change of yaw with respect to velocity rad/pixel -ve left, +ve right
 
         #Limits    
@@ -57,18 +56,22 @@ class Car():
 
         self.screen_offset_vec = euclid.Vector3(0.0, 0.0, 0.0)
 
+        self.finish_line = self.__set_finish_line()
+        self.control_type = control_type # string either manual or neural
+        self.log_data = log_data # bool either 1 or 0
+
         self.data_log = []
 
     def get_inputs(self):
         inputs = []
         #Inputs
         for s_range in self.sensor_ranges:
-            inputs.append(self.__truncate(s_range,2))
+            inputs.append(Functions.truncate(s_range,2))
         return inputs 
 
     def control_list(self, control_list):
         if len(control_list) != len(self.steering_array):
-            raise AttributeError( 'incorrect number of elements in steering list')
+            raise AttributeError( 'incorrect number of elements in steering list. ', str(len(control_list)), ' to ', str(len(self.steering_array)))
         if self.crashed == False:
             max_control = 0
             index = 0
@@ -79,7 +82,7 @@ class Car():
 
         self.control_bools = control_list[:]
     
-    def update(self, time_delta, obstacles, finish_line):
+    def update(self, time_delta, obstacles):
         self.__reset_sensors()
         self.__update_dynamics(time_delta)
         self.__update_geometry()
@@ -87,22 +90,20 @@ class Car():
         for obstacle in obstacles:
             self.__sense(obstacle)
             self.__detect_collision(obstacle)
-        self.__detect_finish_line(finish_line)
+        self.__detect_finish_line()
 
-        self.__log_data(False)
-
-    def __translate(self, value, leftMin, leftMax, rightMin, rightMax):
-        self.data_log.append(current_data)
+        if self.log_data ==True:
+            self.__log_data(False)
 
     def display(self, screen_handle, screen_offset_vec, draw_vectors = True):
         #Compute offsets
 
         pos = self.position + screen_offset_vec
 
-        rl = self.rear_left + screen_offset_vec
+        bl = self.rear_left + screen_offset_vec #back left
         fl = self.front_left + screen_offset_vec
         fr = self.front_right + screen_offset_vec
-        rr = self.rear_right + screen_offset_vec
+        br = self.rear_right + screen_offset_vec #back right
         
         so = self.sensor_origin + screen_offset_vec
     
@@ -114,7 +115,7 @@ class Car():
         #Draw car
 
         #Draw the offset points
-        point_list = [(rl.x, rl.y), (fl.x, fl.y), (fr.x, fr.y), (rr.x, rr.y)]
+        point_list = [(bl.x, bl.y), (fl.x, fl.y), (fr.x, fr.y), (br.x, br.y)]
         pygame.draw.lines(screen_handle, self.color, True, point_list, self.line_width)
 
         #Draw origin
@@ -154,13 +155,6 @@ class Car():
                 writer.writerow(line)
         print "Training data written to file"
 
-    def __truncate(self, f, n):
-        '''Truncates/pads a float f to n decimal places without rounding'''
-        s = '{}'.format(f)
-        if 'e' in s or 'E' in s:
-            return '{0:.{1}f}'.format(f, n)
-        i, p, d = s.partition('.')
-        return '.'.join([i, (d+'0'*n)[:n]])
 
 
     def __reset_sensors(self):
@@ -209,7 +203,7 @@ class Car():
                     p3 = obstacle[j-1]
                 p4 = obstacle[j]
                 #Get intersection point in global frame
-                ix, iy = self.__get_line_intersection(p1, p2, p3, p4)
+                ix, iy = Functions.get_line_intersection(p1, p2, p3, p4)
                 #Append all non-null intersections to the list of intersections for that ray
                 if ix != None and iy != None:
                     intersect_list.append(euclid.Vector3(ix,iy, 0.0))
@@ -237,28 +231,28 @@ class Car():
                 p4 = obstacle[j]
                
                 #Get intersection point in global frame
-                ix, iy = self.__get_line_intersection(p1, p2, p3, p4)
+                ix, iy = Functions.get_line_intersection(p1, p2, p3, p4)
                 if ix != None or iy != None:
                     self.crashed = True
                     return 0
                     
-    def __detect_finish_line(self, finish_line):
-
+    def __detect_finish_line(self):
+        # define a line protruding from the front of the car which is used to detect a line crossing. 
         finish_bar = self.sensor_origin + self.orientation * 20.0
         p1 = (self.sensor_origin.x, self.sensor_origin.y)
         p2 = (finish_bar.x, finish_bar.y)
 
-        for j in range(0,len(finish_line)):
+        for j in range(0,len(self.finish_line)):
             if j ==0:
-                p3 = finish_line[-1]
+                p3 = self.finish_line[-1]
             else:
-                p3 = finish_line[j-1]
-            p4 = finish_line[j]
+                p3 = self.finish_line[j-1]
+            p4 = self.finish_line[j]
            
             #Get intersection point in global frame
-            ix, iy = self.__get_line_intersection(p1, p2, p3, p4)
+            ix, iy = Functions.get_line_intersection(p1, p2, p3, p4)
             if ix != None or iy != None:
-                self.finished = True
+                self.finishes +=1
                 return 0
         
         #Test for collision between the obstacle and each of the corners/lines of the car
@@ -270,14 +264,12 @@ class Car():
         #Inputs
         if scale_inputs:
             for s_range in self.sensor_ranges:
-                current_data.append(self.__truncate(self.__translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
+                current_data.append(Functions.truncate(Functions.translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
 
-            current_data.append(self.__truncate(self.__translate(self.velocity, 0.0, self.max_velocity, 0.0, 1.0),2))
         else:
             for s_range in self.sensor_ranges:
-                current_data.append(self.__truncate(s_range,2))
+                current_data.append(Functions.truncate(s_range,2))
 
-            current_data.append(self.__truncate(self.velocity,2))
 
         #Outputs
             for item in self.control_bools:
@@ -298,32 +290,10 @@ class Car():
             count +=1
         return vectors
 
+    # set the finish line for the car. The finish line is a line 200 units long, perpendicular to the length of the car, starting at the origin. 
+    def __set_finish_line(self):
 
-    def __get_line_intersection(self, p1, p2, p3, p4):
-        try:
-            s1 = (p2[0] - p1[0], p2[1] - p1[1])
-            s2 = (p4[0] - p3[0], p4[1] - p3[1])
+        finish_left = self.position + self.orientation.rotate_around( euclid.Vector3(0.,0.,1.), -0.5*math.pi)* 100
+        finish_right = self.position + self.orientation.rotate_around( euclid.Vector3(0.,0.,1.), 0.5*math.pi)*100
 
-            s = (-s1[1] * (p1[0] - p3[0]) + s1[0] * (p1[1] - p3[1])) / (-s2[0] * s1[1] + s1[0] * s2[1]);
-            t = ( s2[0] * (p1[1] - p3[1]) - s2[1] * (p1[0] - p3[0])) / (-s2[0] * s1[1] + s1[0] * s2[1]);
-
-            if (s >= 0 and s <= 1 and t >= 0 and t <= 1):
-
-                i_x = p1[0] + (t * s1[0])
-                i_y = p1[1] + (t * s1[1])
-                return i_x, i_y # Collision detected
-            else:
-                return None, None # No collision
-        except:
-            return None, None
-
-    def __translate(self, value, leftMin, leftMax, rightMin, rightMax):
-        # Figure out how 'wide' each range is
-        leftSpan = leftMax - leftMin
-        rightSpan = rightMax - rightMin
-
-        # Convert the left range into a 0-1 range (float)
-        valueScaled = float(value - leftMin) / float(leftSpan)
-
-        # Convert the 0-1 range into a value in the right range.
-        return rightMin + (valueScaled * rightSpan)
+        return [(finish_right.x, finish_right.y), (finish_left.x, finish_left.y)]

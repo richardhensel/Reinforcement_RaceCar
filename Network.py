@@ -7,6 +7,7 @@ import numpy
 import random
 import copy
 import csv
+import Functions
 
 class Network():
     #default init copies a model from input
@@ -22,11 +23,11 @@ class Network():
     @classmethod
     def new(cls):
         model = Sequential()
-        model.add(Dense(13, input_dim=10, init='uniform', activation='relu'))
+        model.add(Dense(13, input_dim=15, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
-        model.add(Dense(5, init='uniform'))
+        model.add(Dense(3, init='uniform'))
 
         return cls(model)
 
@@ -57,19 +58,23 @@ class Network():
             json_file.write(model_json)
         # serialize weights to HDF5
         self.model.save_weights(weights_file)
-        print("Saved model to disk")
+        print("Saved model and weights to disk")
 
     def save_weights(self, weights_file):
         self.model.save_weights(weights_file)
-        print("Saved model to disk")
+        print("Saved weights to disk")
 
     def train(self, training_data, epoch=200, batch=3):
         dataset = numpy.loadtxt(training_data, delimiter=",")
         numpy.random.shuffle(dataset)
 
         # split into input (X) and output (Y) variables
-        X = dataset[:,0:9]
-        Y = dataset[:,9:]
+        X = dataset[:,0:14]
+        Y = dataset[:,14:-2]
+        #invert the values of the bools if the last value is 0 (car crashed).
+        for i in range(0, len(dataset[-1])):
+            if dataset[-1, i] == 0:
+                Y[:,i] = Functions.invert_bools(Y)
 
         # Fit the model
         self.model.fit(X, Y, nb_epoch=epoch, batch_size=batch,  verbose=2)
@@ -80,7 +85,7 @@ class Network():
         prediction = self.model.predict(numpy_inputs)
 
         #This needs to be generalized to accept any number of outputs
-        return [prediction[0][0], prediction[0][1]]
+        return [prediction[0][0], prediction[0][1], prediction[0][2]]
 
     #Return the config and weights
     def get_config_weights(self):
