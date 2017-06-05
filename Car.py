@@ -60,7 +60,8 @@ class Car():
         self.control_type = control_type # string either manual or neural
         self.log_data = log_data # bool either 1 or 0
 
-        self.data_log = []
+        self.steering_log = []
+        self.sensor_log = []
 
     def get_inputs(self):
         inputs = []
@@ -142,17 +143,19 @@ class Car():
             option = 'w'
         else:
             option = 'a'
-        #Append the crash status to each line of the data log
-        for line in self.data_log:
+        
+        inverted_steering = []
+        #Invert the steering if crashed. 
+        for line in self.steering_log:
             if self.crashed:
-                line.append(0)
+                inverted_steering.append(Functions.invert_bools(line))
             else:
-                line.append(1)
+                inverted_steering.append(line[:])
 
         with open(file_name, option) as f:
             writer = csv.writer(f)
-            for line in self.data_log:
-                writer.writerow(line)
+            for i in range(0,len(self.steering_log)):
+                writer.writerow(self.sensor_log[i]+self.steering_log[i]+inverted_steering[i])
         print "Training data written to file"
 
 
@@ -260,22 +263,24 @@ class Car():
 
     def __log_data(self, scale_inputs):
         # Scale the data to values between -1 and 1. append to list with one row per time step
-        current_data = []
+        current_steering = []
+        current_sensors = []
         #Inputs
         if scale_inputs:
             for s_range in self.sensor_ranges:
-                current_data.append(Functions.truncate(Functions.translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
+                current_sensors.append(Functions.truncate(Functions.translate(s_range, 0.0, self.max_sensor_length, 0.0, 1.0),2))
 
         else:
             for s_range in self.sensor_ranges:
-                current_data.append(Functions.truncate(s_range,2))
+                current_sensors.append(Functions.truncate(s_range,2))
 
 
         #Outputs
             for item in self.control_bools:
-                current_data.append(item)
+                current_steering.append(item)
 
-        self.data_log.append(current_data)
+        self.steering_log.append(current_steering)
+        self.sensor_log.append(current_sensors)
     
     def __get_sensor_vectors(self, ray_lengths):
         angle = math.pi / (self.num_sensors-1)

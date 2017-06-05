@@ -70,9 +70,10 @@ while runMe:
     model_file = 'model/model.json'
     weights_file = 'model/weights_gen'+str(prev_generation)+'.h5'
 
-    environment = Environment([0,1], [0,0], model_file, weights_file,obstacles,display)
+    environment = Environment(1, 0, model_file, weights_file,obstacles,display)
     while runMe == True:
 
+        environment.get_user_input()
         environment.control()
 
         #Limit the framerate
@@ -99,7 +100,7 @@ while runMe:
             pygame.display.flip()
 
 
-        if environment.quit:
+        if environment.quit or environment.all_finished:
             print 'round terminated. Restarting.'
             break
 

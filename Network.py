@@ -27,7 +27,7 @@ class Network():
         model.add(Dense(13, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
         model.add(Dense(13, init='uniform', activation='relu'))
-        model.add(Dense(3, init='uniform'))
+        model.add(Dense(3, init='uniform', activation='sigmoid'))
 
         return cls(model)
 
@@ -69,12 +69,8 @@ class Network():
         numpy.random.shuffle(dataset)
 
         # split into input (X) and output (Y) variables
-        X = dataset[:,0:14]
-        Y = dataset[:,14:-2]
-        #invert the values of the bools if the last value is 0 (car crashed).
-        for i in range(0, len(dataset[-1])):
-            if dataset[-1, i] == 0:
-                Y[:,i] = Functions.invert_bools(Y)
+        X = dataset[:,0:15]
+        Y = dataset[:,18:]
 
         # Fit the model
         self.model.fit(X, Y, nb_epoch=epoch, batch_size=batch,  verbose=2)
